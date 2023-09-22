@@ -1,0 +1,13 @@
+
+-------------------------------------------------------------
+
+1 - atualizei o NodeJs e instalei o PostgreSQL;
+2 - executei o script do BD;
+3 - criei a pasta desafio lanchonete 2023;
+4 - executei o comando no terminal: npm install express pg;
+5 - criei o arquivo api.js;
+6 - criei o arquivo index.html;
+7 - executei o comando no terminal: cd src -> node api.js;
+8 - abri o endereço: http://localhost:3000;
+
+--------------------------------------------------------------
