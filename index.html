@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lanchonete DB: caixa</title>
+</head>
+<body>
+    <h1>Carrinho de compras</h1>
+    <input type="text" id="codigo" placeholder="Código do produto">
+    <button onclick="getProduct()">Buscar</button>
+    <div>
+        <h3>Descrição do item</h3>
+        <input type="text" id="descricao" disabled>
+        <h3>Valor</h3>
+        <input type="text" id="valor" disabled>
+        <label for="multiplicador"> X </label>
+        <input type="text" id="multiplicador" value="1">
+        <!-- Botão para atualizar valores -->
+        <button onclick="atualizaValor()">Atualiza valor</button>
+    </div>
+    <br />
+    <!-- Tabela para mostrar resultados da pesquisa -->
+    <h3>Lista de pedidos do carrinho de compras</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Código</th>
+                <th>Descrição do produto</th>
+                <th>Valor unitário</th>
+                <th>Quantidade</th>
+            </tr>
+        </thead>
+        <tbody id="resultadosTabela">
+            
+        </tbody>
+    </table>
+    <br />
+    <div>
+        <h3>Apagar item</h3>
+        <input type="text" id="apagaItem" placeholder="Código do produto">
+        <button onclick="apagaItem()">Apaga item</button> 
+    </div>
+
+    <!-- Input para somar os valores -->
+    <h3>Valor total parcial</h3>
+    <input type="text" id="totalValorPesquisado" disabled>
+    
+    <!-- RadioButtons -->
+    <h3>Forma de Pagamento</h3>
+    <input type="radio" id="dinheiro" name="pagamento" value="dinheiro">
+    <label for="dinheiro">Dinheiro</label>
+    <input type="radio" id="debito" name="pagamento" value="debito">
+    <label for="debito">Débito</label>
+    <input type="radio" id="credito" name="pagamento" value="credito">
+    <label for="credito">Crédito</label>
+
+    <!-- Botão para finalizar pedido -->
+    <button onclick="finalizarPedido()">Finalizar pedido</button>
+
+    <!-- Input para somar os valores -->
+    <h3>Valor total finalizado</h3>
+    <input type="text" id="totalValorFinalizado" disabled>
+
+    <script>
+        // Variável para armazenar o valor total
+        let totalValor = 0;
+
+        function getProduct() {
+            const codigo = document.getElementById('codigo').value;
+
+            fetch(`/getProduct/${codigo}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data && data.codigo) {
+                        document.getElementById('descricao').value = data.descricao;
+                        document.getElementById('valor').value = data.valor;
+
+                        // Adicionar o resultado à tabela
+                        const resultadosTabela = document.getElementById('resultadosTabela');
+                        const newRow = resultadosTabela.insertRow();
+                        newRow.innerHTML = `<td>${data.codigo}</td><td>${data.descricao}</td><td>${data.valor}</td><td id="quantidade-${data.codigo}"></td>`;
+
+                        // Somar o valor ao total
+                        totalValor += parseFloat(data.valor);
+                        document.getElementById('totalValorPesquisado').value = totalValor.toFixed(2);
+                    } else {
+                        document.getElementById('descricao').value = '';
+                        document.getElementById('valor').value = '';
+                        alert('Item inválido!');
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro:', error);
+                    alert('Digite um código válido para buscar um item!');
+                });
+        }
+        
+        function atualizaValor() {
+            const multiplicador = parseFloat(document.getElementById('multiplicador').value);
+            
+            if (!isNaN(multiplicador) && multiplicador >= 1) {
+                const valorAtual = parseFloat(document.getElementById('valor').value);
+                const novoValor = valorAtual * multiplicador;
+                const diferenca = novoValor - valorAtual;
+
+                document.getElementById('valor').value = novoValor.toFixed(2);
+                totalValor += diferenca;
+                document.getElementById('totalValorPesquisado').value = totalValor.toFixed(2);
+
+                // Adicionar a quantidade na coluna "Quantidade"
+                const codigo = document.getElementById('codigo').value;
+                const quantidadeCell = document.getElementById(`quantidade-${codigo}`);
+                quantidadeCell.innerText = multiplicador;
+            } else {
+                // Selecionar o elemento de input
+                const inputElement = document.getElementById('multiplicador'); // Substitua 'seuInputId' pelo ID do seu input
+
+                // Adicionar um evento de escuta de entrada (input)
+                inputElement.addEventListener('input', function () {
+                    // Remover espaços em branco do valor digitado
+                    const inputValue = this.value.trim();
+
+                    // Verificar se o valor é um número inteiro
+                    if (!/^\d+$/.test(inputValue)) {
+                        // Se não for um número inteiro, remover os caracteres não numéricos
+                        this.value = inputValue.replace(/[^\d]/g, '');
+                    }
+                });
+                alert('Quantidade inválida!');
+            }
+            
+        }
+
+        function apagaItem() {
+
+            const codigoApagar = document.getElementById('apagaItem').value;
+
+            // Procurar a linha da tabela com o código a ser apagado
+            const tabela = document.getElementById('resultadosTabela');
+            const linhas = tabela.getElementsByTagName('tr');
+            let valorItemApagado = 0;
+
+            for (let i = 0; i < linhas.length; i++) {
+                const colunas = linhas[i].getElementsByTagName('td');
+                if (colunas.length >= 4 && colunas[0].innerText === codigoApagar) {
+                    // Obter a quantidade do item que será apagado
+                    const quantidadeItemApagado = parseFloat(colunas[3].innerText);
+                    valorItemApagado = parseFloat(colunas[2].innerText) * quantidadeItemApagado;
+
+                    // Atualizar o valor total
+                    totalValor -= valorItemApagado;
+                    document.getElementById('totalValorPesquisado').value = totalValor.toFixed(2);
+
+                    // Remover a linha correspondente da tabela
+                    tabela.removeChild(linhas[i]);
+                    break;
+                }
+            }
+
+        }
+
+        function finalizarPedido() {
+            // Lógica para finalizar o pedido
+            const formaPagamento = document.querySelector('input[name="pagamento"]:checked');
+            const tabelaItens = document.getElementById('resultadosTabela'); // Supondo que a tabela de itens tenha o ID 'resultadosTabela'
+
+            if (formaPagamento) {
+                const valorPedido = document.getElementById('totalValorPesquisado').value;
+                const pagamentoSelecionado = formaPagamento.value;
+                
+                // Verificar se a tabela de itens está vazia
+                if (tabelaItens && tabelaItens.rows.length === 0) {
+                    alert('Não existem itens no carrinho de compras para fechar o pedido!');
+                } else {
+                    // Verificar se o item é "chantily" e há apenas uma linha na tabela
+                    const linhaUnica = tabelaItens.rows.length === 1;
+                    const itemUnicoEhChantily = tabelaItens.rows[0].cells[0].innerText === 'chantily';
+                    const itemUnicoEhQueijo = tabelaItens.rows[0].cells[0].innerText === 'queijo';
+
+                    // Verificar se os itens são "chantily" e "combo1" ou "combo2"
+                    const itensSaoCombos = tabelaItens.rows.length === 2 && (
+                        (tabelaItens.rows[0].cells[0].innerText === 'combo1' && tabelaItens.rows[1].cells[0].innerText === 'chantily') ||
+                        (tabelaItens.rows[0].cells[0].innerText === 'chantily' && tabelaItens.rows[1].cells[0].innerText === 'combo1') ||
+                        (tabelaItens.rows[0].cells[0].innerText === 'combo2' && tabelaItens.rows[1].cells[0].innerText === 'chantily') ||
+                        (tabelaItens.rows[0].cells[0].innerText === 'chantily' && tabelaItens.rows[1].cells[0].innerText === 'combo2') ||
+                        (tabelaItens.rows[0].cells[0].innerText === 'combo1' && tabelaItens.rows[1].cells[0].innerText === 'queijo') ||
+                        (tabelaItens.rows[0].cells[0].innerText === 'queijo' && tabelaItens.rows[1].cells[0].innerText === 'combo1') ||
+                        (tabelaItens.rows[0].cells[0].innerText === 'combo2' && tabelaItens.rows[1].cells[0].innerText === 'queijo') ||
+                        (tabelaItens.rows[0].cells[0].innerText === 'queijo' && tabelaItens.rows[1].cells[0].innerText === 'combo2')
+                    );
+
+                    const itensDiferentesPrincipal = tabelaItens.rows.length >= 2 && (
+                        (tabelaItens.rows[0].cells[0].innerText !== 'cafe' && tabelaItens.rows[1].cells[0].innerText === 'chantily') ||
+                        (tabelaItens.rows[0].cells[0].innerText === 'chantily' && tabelaItens.rows[1].cells[0].innerText !== 'cafe') ||
+                        (tabelaItens.rows[0].cells[0].innerText !== 'sanduiche' && tabelaItens.rows[1].cells[0].innerText === 'queijo') ||
+                        (tabelaItens.rows[0].cells[0].innerText === 'queijo' && tabelaItens.rows[1].cells[0].innerText !== 'sanduiche')
+                    );
+
+                    if ((linhaUnica && itemUnicoEhChantily) || (linhaUnica && itemUnicoEhQueijo) ) {
+                        alert('Item extra não pode ser pedido sem o principal!');
+                    } else if (itensSaoCombos) {
+                        alert('Combos não são considerados como itens principais!');
+                    } else if (itensDiferentesPrincipal) {
+                        alert('Item extra não pode ser pedido sem o principal!');
+                    }else {
+                        alert(`Pedido finalizado! Valor: R$${valorPedido}, Forma de pagamento: ${pagamentoSelecionado}`);
+                    }
+                }
+            } else {
+                alert('Selecione a forma de pagamento!');
+            }
+        }
+
+    </script>
+</body>
+</html>
